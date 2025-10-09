@@ -36,6 +36,7 @@ body, html {
     display: flex;
     align-items: center;
     background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0));
+    pointer-events: none;
 }
 
 /*
@@ -63,6 +64,7 @@ body, html {
     border: 6px solid #fff;
     cursor: pointer;
     transition: transform 0.1s ease;
+    pointer-events: auto; 
     /* 以下の position, left, transform を削除 */
     /* position: absolute; */
     /* left: 50%; */
