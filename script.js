@@ -17,25 +17,20 @@ const counter = document.getElementById('counter');
 // --- グローバル変数 ---
 let currentStream;
 let facingMode = 'environment';
-let photoStack = []; // 撮影した写真を保存する配列
+let photoStack = [];
 let currentGalleryIndex = 0;
 
 // --- カメラ機能 ---
 async function startCamera() {
-    // 既存のストリームがあれば停止
     if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
     }
     try {
-        const constraints = {
-            video: { facingMode: facingMode },
-            audio: false
-        };
+        const constraints = { video: { facingMode: facingMode }, audio: false };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
         currentStream = stream;
     } catch (err) {
-        // エラー内容を詳しく表示するよう改善
         console.error('カメラの起動に失敗:', err);
         let message = 'カメラを利用できませんでした。\n';
         if (err.name === 'NotAllowedError') {
@@ -49,7 +44,6 @@ async function startCamera() {
     }
 }
 
-// 控えめなフラッシュ効果
 function triggerFlash() {
     flashOverlay.classList.add('flash');
     setTimeout(() => {
@@ -58,7 +52,10 @@ function triggerFlash() {
 }
 
 // --- 撮影処理 ---
-shutterBtn.addEventListener('click', () => {
+shutterBtn.addEventListener('click', (event) => {
+    // 【修正点】イベントの伝播を停止
+    event.stopPropagation();
+    
     if (!currentStream) {
         alert('カメラが起動していません。');
         return;
@@ -101,18 +98,23 @@ function updateGalleryView() {
 }
 
 // --- イベントリスナー ---
-switchCameraBtn.addEventListener('click', () => {
+switchCameraBtn.addEventListener('click', (event) => {
+    // 【最重要修正点】イベントの伝播を停止
+    event.stopPropagation();
+
     facingMode = (facingMode === 'user') ? 'environment' : 'user';
     startCamera();
 });
 
-thumbnailContainer.addEventListener('click', () => {
+thumbnailContainer.addEventListener('click', (event) => {
+    // 【修正点】イベントの伝播を停止
+    event.stopPropagation();
+
     openGallery(0);
 });
 
 closeGalleryBtn.addEventListener('click', closeGallery);
 
-// 【復活】タップ・トゥ・フォーカス機能
 video.addEventListener('click', () => {
     if (!currentStream) return;
     const track = currentStream.getVideoTracks()[0];
@@ -123,7 +125,6 @@ video.addEventListener('click', () => {
     }
 });
 
-// ギャラリーでのスワイプ機能
 let touchStartX = 0;
 galleryView.addEventListener('touchstart', (e) => {
     touchStartX = e.changedTouches[0].screenX;
@@ -142,5 +143,4 @@ galleryView.addEventListener('touchend', (e) => {
 });
 
 // --- 初期化 ---
-// ページが読み込まれたらカメラを起動
 startCamera();
