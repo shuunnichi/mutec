@@ -42,9 +42,9 @@ body, html {
  * 【要望1対応】カメラ画面のコントロールバーの配置を調整
  */
 #camera-view .controls {
-    justify-content: space-between; /* ボタンを両端に配置 */
-    padding-left: 30px;
-    padding-right: 30px;
+    justify-content: center;
+    padding-left: 0; /* 不要になったので削除 or 0に */
+    padding-right: 0; /* 不要になったので削除 or 0に */
 }
 
 /* 結果画面のコントロールバーは中央揃えのまま */
@@ -59,18 +59,19 @@ body, html {
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background-color: transparent; /* 中を透明に */
-    border: 6px solid #fff;      /* 白いリングにする */
+    background-color: transparent;
+    border: 6px solid #fff;
     cursor: pointer;
-    transition: transform 0.1s ease; /* アニメーションを追加 */
-    /* シャッターボタンが中央に来るように調整 */
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    transition: transform 0.1s ease;
+    /* 以下の position, left, transform を削除 */
+    /* position: absolute; */
+    /* left: 50%; */
+    /* transform: translateX(-50%); */
 }
 .shutter:active {
-    transform: translateX(-50%) scale(0.95); /* 押したときに少し小さくなる */
-    border-width: 8px; /* 押したときにリングを太くする */
+    /* transform の translateX(-50%) も削除 */
+    transform: scale(0.95);
+    border-width: 8px;
 }
 
 
@@ -130,7 +131,7 @@ body, html {
 /* 左下のサムネイル */
 #thumbnail-container {
     position: absolute;
-    bottom: 25px;
+    bottom: 25px; /* ボタンと高さを合わせる */
     left: 30px;
     width: 55px;
     height: 55px;
@@ -138,7 +139,7 @@ body, html {
     overflow: hidden;
     border: 2px solid #fff;
     cursor: pointer;
-    display: none; /* 最初は非表示 */
+    display: none;
     box-shadow: 0 2px 5px rgba(0,0,0,0.5);
 }
 #thumbnail-preview {
@@ -156,6 +157,13 @@ body, html {
     height: 100%;
     /* 写真全体が見えるように contain を指定 */
     object-fit: contain;
+}
+
+#switch-camera-btn {
+    position: absolute;
+    bottom: 25px;
+    right: 30px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
 }
 
 /* ギャラリーの上部コントロール */
