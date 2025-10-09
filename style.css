@@ -22,10 +22,10 @@ body, html {
 #camera-preview, #captured-image {
     width: 100%;
     height: 100%;
-    object-fit: cover; /* アスペクト比を保ったまま画面全体に表示 */
+    object-fit: cover;
 }
 
-/* 操作ボタンのコンテナ */
+/* 操作ボタンのコンテナの基本設定 */
 .controls {
     position: absolute;
     bottom: 0;
@@ -34,39 +34,75 @@ body, html {
     padding: 20px 0;
     box-sizing: border-box;
     display: flex;
-    justify-content: center; /* ボタンが1つなので中央に配置 */
     align-items: center;
     background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0));
 }
 
-/* シャッターボタン */
-.shutter {
-    width: 70px;
-    height: 70px;
-    border-radius: 50%;
-    background-color: #fff;
-    border: 4px solid #fff;
-    outline: 2px solid #000;
-    cursor: pointer;
-}
-.shutter:active {
-    background-color: #ccc;
+/*
+ * 【要望1対応】カメラ画面のコントロールバーの配置を調整
+ */
+#camera-view .controls {
+    justify-content: space-between; /* ボタンを両端に配置 */
+    padding-left: 30px;
+    padding-right: 30px;
 }
 
-/* その他の操作ボタン */
+/* 結果画面のコントロールバーは中央揃えのまま */
+#result-view .controls {
+    justify-content: center;
+}
+
+/*
+ * 【要望2対応】シャッターボタンのデザインを改善
+ */
+.shutter {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: transparent; /* 中を透明に */
+    border: 6px solid #fff;      /* 白いリングにする */
+    cursor: pointer;
+    transition: transform 0.1s ease; /* アニメーションを追加 */
+    /* シャッターボタンが中央に来るように調整 */
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+.shutter:active {
+    transform: translateX(-50%) scale(0.95); /* 押したときに少し小さくなる */
+    border-width: 8px; /* 押したときにリングを太くする */
+}
+
+
+/*
+ * 【要望2対応】その他のボタンのデザインを改善
+ */
 .control-btn {
-    background-color: rgba(255, 255, 255, 0.8);
     border: none;
-    border-radius: 10px;
     padding: 12px 20px;
     font-size: 16px;
     cursor: pointer;
-    color: #000;
-    text-decoration: none;
+    border-radius: 20px; /* 角を丸く */
+    background-color: rgba(100, 100, 100, 0.6); /* 半透明の背景色 */
+    color: #fff; /* 文字色を白に */
+    transition: background-color 0.2s;
 }
 .control-btn:hover {
-    background-color: #fff;
+    background-color: rgba(120, 120, 120, 0.8);
 }
+
+/* カメラ画面の切替ボタンを円形にする */
+#camera-view .control-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%; /* 円にする */
+    font-size: 24px;    /* 絵文字のサイズ調整 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
 
 /* 表示・非表示を切り替えるためのクラス */
 .hidden {
