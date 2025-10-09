@@ -22,17 +22,30 @@ let currentGalleryIndex = 0;
 
 // --- カメラ機能 ---
 async function startCamera() {
+    // 既存のストリームがあれば停止
     if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
     }
     try {
-        const constraints = { video: { facingMode: facingMode }, audio: false };
+        const constraints = {
+            video: { facingMode: facingMode },
+            audio: false
+        };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
         currentStream = stream;
     } catch (err) {
-        console.error('カメラの起動に失敗しました:', err);
-        alert('カメラを利用できませんでした。ブラウザのカメラアクセス許可を確認してください。');
+        // エラー内容を詳しく表示するよう改善
+        console.error('カメラの起動に失敗:', err);
+        let message = 'カメラを利用できませんでした。\n';
+        if (err.name === 'NotAllowedError') {
+            message += 'カメラの使用が許可されていません。ブラウザまたはスマートフォンの設定で、このサイトへのカメラアクセスを許可してください。';
+        } else if (err.name === 'NotFoundError') {
+            message += '利用可能なカメラが見つかりませんでした。';
+        } else {
+            message += 'エラーが発生しました: ' + err.name;
+        }
+        alert(message);
     }
 }
 
@@ -41,42 +54,38 @@ function triggerFlash() {
     flashOverlay.classList.add('flash');
     setTimeout(() => {
         flashOverlay.classList.remove('flash');
-    }, 200); // 0.2秒でフラッシュを終了
+    }, 200);
 }
 
 // --- 撮影処理 ---
 shutterBtn.addEventListener('click', () => {
-    // 描画処理
+    if (!currentStream) {
+        alert('カメラが起動していません。');
+        return;
+    }
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const context = canvas.getContext('2d');
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL('image/png');
     
-    // 写真をスタックの先頭に追加 (新しいものが常に0番目に来る)
     photoStack.unshift(dataUrl);
-    
-    // サムネイルを更新
     updateThumbnail();
-
-    // フラッシュを実行
     triggerFlash();
 });
 
 // --- ギャラリー機能 ---
 function updateThumbnail() {
     if (photoStack.length > 0) {
-        thumbnailPreview.src = photoStack[0]; // 常に先頭（最新）の写真
+        thumbnailPreview.src = photoStack[0];
         thumbnailContainer.style.display = 'block';
     }
 }
 
 function openGallery(index) {
     if (photoStack.length === 0) return;
-    
     currentGalleryIndex = index;
     updateGalleryView();
-    
     cameraView.classList.add('hidden');
     galleryView.classList.remove('hidden');
 }
@@ -86,7 +95,6 @@ function closeGallery() {
     cameraView.classList.remove('hidden');
 }
 
-// ギャラリーの表示を更新する関数
 function updateGalleryView() {
     galleryImage.src = photoStack[currentGalleryIndex];
     counter.textContent = `${currentGalleryIndex + 1} / ${photoStack.length}`;
@@ -98,13 +106,22 @@ switchCameraBtn.addEventListener('click', () => {
     startCamera();
 });
 
-// サムネイルをクリックしたらギャラリーを開く
 thumbnailContainer.addEventListener('click', () => {
-    openGallery(0); // 最新の写真（配列の0番目）から表示
+    openGallery(0);
 });
 
-// ギャラリーを閉じる
 closeGalleryBtn.addEventListener('click', closeGallery);
+
+// 【復活】タップ・トゥ・フォーカス機能
+video.addEventListener('click', () => {
+    if (!currentStream) return;
+    const track = currentStream.getVideoTracks()[0];
+    const capabilities = track.getCapabilities();
+    if (capabilities.focusMode) {
+        track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] })
+        .catch(e => console.error('フォーカスの適用に失敗', e));
+    }
+});
 
 // ギャラリーでのスワイプ機能
 let touchStartX = 0;
@@ -115,20 +132,15 @@ galleryView.addEventListener('touchstart', (e) => {
 galleryView.addEventListener('touchend', (e) => {
     const touchEndX = e.changedTouches[0].screenX;
     const swipeDistance = touchEndX - touchStartX;
-
-    // スワイプ距離が50px以上の場合に写真を切り替え
-    if (swipeDistance > 50) { // 右へスワイプ -> 前の写真へ
-        if (currentGalleryIndex > 0) {
-            currentGalleryIndex--;
-            updateGalleryView();
-        }
-    } else if (swipeDistance < -50) { // 左へスワイプ -> 次の写真へ
-        if (currentGalleryIndex < photoStack.length - 1) {
-            currentGalleryIndex++;
-            updateGalleryView();
-        }
+    if (swipeDistance > 50 && currentGalleryIndex > 0) {
+        currentGalleryIndex--;
+        updateGalleryView();
+    } else if (swipeDistance < -50 && currentGalleryIndex < photoStack.length - 1) {
+        currentGalleryIndex++;
+        updateGalleryView();
     }
 });
 
 // --- 初期化 ---
+// ページが読み込まれたらカメラを起動
 startCamera();
