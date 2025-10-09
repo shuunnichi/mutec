@@ -7,7 +7,6 @@ const capturedImage = document.getElementById('captured-image');
 const shutterBtn = document.getElementById('shutter-btn');
 const switchCameraBtn = document.getElementById('switch-camera-btn');
 const recaptureBtn = document.getElementById('recapture-btn');
-const downloadLink = document.getElementById('download-link');
 
 // 現在のカメラストリームを保持する変数
 let currentStream;
@@ -52,7 +51,6 @@ shutterBtn.addEventListener('click', () => {
     
     // 結果を表示
     capturedImage.src = dataUrl;
-    downloadLink.href = dataUrl;
     
     // 表示を切り替え
     cameraView.classList.add('hidden');
@@ -101,39 +99,5 @@ video.addEventListener('click', () => {
         });
     } else {
         console.log('このデバイスはフォーカスモードの制御をサポートしていません。');
-    }
-});
-// 新しく追加したコピーボタンの要素を取得
-const copyBtn = document.getElementById('copy-btn');
-
-// コピーボタンのクリック処理
-copyBtn.addEventListener('click', async () => {
-    // Clipboard APIが使えるかチェック
-    if (!navigator.clipboard || !navigator.clipboard.write) {
-        alert('お使いのブラウザは、クリップボードへのコピー機能に対応していません。');
-        return;
-    }
-
-    try {
-        // canvas.toBlob()を使って、canvasの内容を画像データ(Blob)に変換する
-        // Promiseを使って非同期処理を待つ
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        
-        // ClipboardItemオブジェクトを作成
-        const item = new ClipboardItem({ 'image/png': blob });
-        
-        // クリップボードに書き込む
-        await navigator.clipboard.write([item]);
-        
-        // ユーザーに成功をフィードバック
-        const originalText = copyBtn.textContent;
-        copyBtn.textContent = 'コピー完了！';
-        setTimeout(() => {
-            copyBtn.textContent = originalText;
-        }, 2000); // 2秒後にボタンのテキストを元に戻す
-
-    } catch (err) {
-        console.error('画像のコピーに失敗しました:', err);
-        alert('画像のコピーに失敗しました。');
     }
 });
