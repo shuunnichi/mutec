@@ -34,9 +34,8 @@ body, html {
     padding: 20px 0;
     box-sizing: border-box;
     display: flex;
-    justify-content: center; /* ← space-around から center に変更 */
+    justify-content: center; /* ボタンが1つなので中央に配置 */
     align-items: center;
-    gap: 15px; /* ← ボタン間の余白を追加 */
     background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0));
 }
 
