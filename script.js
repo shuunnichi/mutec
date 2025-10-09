@@ -1,32 +1,32 @@
-// HTML要素を取得
+// --- HTML要素の取得 ---
 const cameraView = document.getElementById('camera-view');
-const resultView = document.getElementById('result-view');
 const video = document.getElementById('camera-preview');
-const canvas = document.getElementById('canvas');
-const capturedImage = document.getElementById('captured-image');
 const shutterBtn = document.getElementById('shutter-btn');
 const switchCameraBtn = document.getElementById('switch-camera-btn');
-const recaptureBtn = document.getElementById('recapture-btn');
+const canvas = document.getElementById('canvas');
+const flashOverlay = document.getElementById('flash-overlay');
 
-// 現在のカメラストリームを保持する変数
+// ギャラリー関連の要素
+const galleryView = document.getElementById('gallery-view');
+const galleryImage = document.getElementById('gallery-image');
+const closeGalleryBtn = document.getElementById('close-gallery-btn');
+const thumbnailContainer = document.getElementById('thumbnail-container');
+const thumbnailPreview = document.getElementById('thumbnail-preview');
+const counter = document.getElementById('counter');
+
+// --- グローバル変数 ---
 let currentStream;
-// 現在のカメラモード（'user'はインカメラ, 'environment'はアウトカメラ）
 let facingMode = 'environment';
+let photoStack = []; // 撮影した写真を保存する配列
+let currentGalleryIndex = 0;
 
-// カメラを起動する関数
+// --- カメラ機能 ---
 async function startCamera() {
-    // 既存のストリームがあれば停止
     if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
     }
-
     try {
-        const constraints = {
-            video: {
-                facingMode: facingMode
-            },
-            audio: false
-        };
+        const constraints = { video: { facingMode: facingMode }, audio: false };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
         currentStream = stream;
@@ -36,68 +36,99 @@ async function startCamera() {
     }
 }
 
-// 撮影ボタンの処理
+// 控えめなフラッシュ効果
+function triggerFlash() {
+    flashOverlay.classList.add('flash');
+    setTimeout(() => {
+        flashOverlay.classList.remove('flash');
+    }, 200); // 0.2秒でフラッシュを終了
+}
+
+// --- 撮影処理 ---
 shutterBtn.addEventListener('click', () => {
-    // Canvasのサイズを映像に合わせる
+    // 描画処理
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    
-    // Canvasに現在の映像フレームを描画
     const context = canvas.getContext('2d');
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    // Canvasから画像データ(URL)を取得
     const dataUrl = canvas.toDataURL('image/png');
     
-    // 結果を表示
-    capturedImage.src = dataUrl;
+    // 写真をスタックの先頭に追加 (新しいものが常に0番目に来る)
+    photoStack.unshift(dataUrl);
     
-    // 表示を切り替え
-    cameraView.classList.add('hidden');
-    resultView.classList.remove('hidden');
+    // サムネイルを更新
+    updateThumbnail();
+
+    // フラッシュを実行
+    triggerFlash();
 });
 
-// カメラ切り替えボタンの処理
+// --- ギャラリー機能 ---
+function updateThumbnail() {
+    if (photoStack.length > 0) {
+        thumbnailPreview.src = photoStack[0]; // 常に先頭（最新）の写真
+        thumbnailContainer.style.display = 'block';
+    }
+}
+
+function openGallery(index) {
+    if (photoStack.length === 0) return;
+    
+    currentGalleryIndex = index;
+    updateGalleryView();
+    
+    cameraView.classList.add('hidden');
+    galleryView.classList.remove('hidden');
+}
+
+function closeGallery() {
+    galleryView.classList.add('hidden');
+    cameraView.classList.remove('hidden');
+}
+
+// ギャラリーの表示を更新する関数
+function updateGalleryView() {
+    galleryImage.src = photoStack[currentGalleryIndex];
+    counter.textContent = `${currentGalleryIndex + 1} / ${photoStack.length}`;
+}
+
+// --- イベントリスナー ---
 switchCameraBtn.addEventListener('click', () => {
     facingMode = (facingMode === 'user') ? 'environment' : 'user';
     startCamera();
 });
 
-// 再撮影ボタンの処理
-recaptureBtn.addEventListener('click', () => {
-    // 表示を元に戻す
-    resultView.classList.add('hidden');
-    cameraView.classList.remove('hidden');
+// サムネイルをクリックしたらギャラリーを開く
+thumbnailContainer.addEventListener('click', () => {
+    openGallery(0); // 最新の写真（配列の0番目）から表示
 });
 
-// ページが読み込まれたらカメラを起動
-startCamera();
-// タップ・トゥ・フォーカス機能
-video.addEventListener('click', () => {
-    // 現在のビデオトラックを取得
-    if (!currentStream) return;
-    const track = currentStream.getVideoTracks()[0];
+// ギャラリーを閉じる
+closeGalleryBtn.addEventListener('click', closeGallery);
 
-    // トラックの機能（capabilities）と設定（settings）を取得
-    const capabilities = track.getCapabilities();
+// ギャラリーでのスワイプ機能
+let touchStartX = 0;
+galleryView.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+});
 
-    // 'focusMode'がサポートされているかチェック
-    if (capabilities.focusMode) {
-        // 一度 'single-shot' (または 'manual') モードにしてから 'continuous' に戻すことで
-        // 再フォーカスを促す、というハック的な手法。
-        // ブラウザやデバイスによって挙動が異なる場合があります。
-        track.applyConstraints({
-            advanced: [{ focusMode: 'manual' }]
-        }).then(() => {
-            return track.applyConstraints({
-                advanced: [{ focusMode: 'continuous' }]
-            });
-        }).then(() => {
-            console.log('再フォーカスを試みました。');
-        }).catch(err => {
-            console.error('フォーカスモードの適用に失敗しました:', err);
-        });
-    } else {
-        console.log('このデバイスはフォーカスモードの制御をサポートしていません。');
+galleryView.addEventListener('touchend', (e) => {
+    const touchEndX = e.changedTouches[0].screenX;
+    const swipeDistance = touchEndX - touchStartX;
+
+    // スワイプ距離が50px以上の場合に写真を切り替え
+    if (swipeDistance > 50) { // 右へスワイプ -> 前の写真へ
+        if (currentGalleryIndex > 0) {
+            currentGalleryIndex--;
+            updateGalleryView();
+        }
+    } else if (swipeDistance < -50) { // 左へスワイプ -> 次の写真へ
+        if (currentGalleryIndex < photoStack.length - 1) {
+            currentGalleryIndex++;
+            updateGalleryView();
+        }
     }
 });
+
+// --- 初期化 ---
+startCamera();
