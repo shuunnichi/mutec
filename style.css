@@ -8,8 +8,15 @@ body {
 
     /* タップ時のハイライトを無効化 (主にiOS) */
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
-
+* {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
 /* 基本スタイル */
 body, html {
     margin: 0;
