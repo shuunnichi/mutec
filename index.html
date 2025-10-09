@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mutecame</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- カメラのプレビュー表示エリア -->
+    <div id="camera-view">
+        <video id="camera-preview" autoplay playsinline></video>
+        <div class="controls">
+            <button id="switch-camera-btn" class="control-btn">🔄</button>
+            <button id="shutter-btn" class="shutter"></button>
+        </div>
+    </div>
+
+    <!-- 撮影結果の表示エリア (最初は非表示) -->
+    <div id="result-view" class="hidden">
+        <img id="captured-image" alt="撮影した画像">
+        <div class="controls">
+            <button id="recapture-btn" class="control-btn">やり直す</button>
+            <a id="download-link" download="photo.png">
+                <button class="control-btn">保存</button>
+            </a>
+        </div>
+    </div>
+
+    <!-- 撮影した画像を一時的に描画するためのCanvas (画面には表示しない) -->
+    <canvas id="canvas" style="display: none;"></canvas>
+
+    <script src="script.js"></script>
+</body>
+</html>
