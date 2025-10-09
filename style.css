@@ -1,0 +1,74 @@
+/* 基本スタイル */
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #000;
+    font-family: sans-serif;
+}
+
+/* カメラと結果の表示エリア共通スタイル */
+#camera-view, #result-view {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* カメラプレビューと撮影結果の画像スタイル */
+#camera-preview, #captured-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* アスペクト比を保ったまま画面全体に表示 */
+}
+
+/* 操作ボタンのコンテナ */
+.controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px 0;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0));
+}
+
+/* シャッターボタン */
+.shutter {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background-color: #fff;
+    border: 4px solid #fff;
+    outline: 2px solid #000;
+    cursor: pointer;
+}
+.shutter:active {
+    background-color: #ccc;
+}
+
+/* その他の操作ボタン */
+.control-btn {
+    background-color: rgba(255, 255, 255, 0.8);
+    border: none;
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    color: #000;
+    text-decoration: none;
+}
+.control-btn:hover {
+    background-color: #fff;
+}
+
+/* 表示・非表示を切り替えるためのクラス */
+.hidden {
+    display: none;
+}
