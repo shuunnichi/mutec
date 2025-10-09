@@ -74,3 +74,32 @@ recaptureBtn.addEventListener('click', () => {
 
 // ページが読み込まれたらカメラを起動
 startCamera();
+// タップ・トゥ・フォーカス機能
+video.addEventListener('click', () => {
+    // 現在のビデオトラックを取得
+    if (!currentStream) return;
+    const track = currentStream.getVideoTracks()[0];
+
+    // トラックの機能（capabilities）と設定（settings）を取得
+    const capabilities = track.getCapabilities();
+
+    // 'focusMode'がサポートされているかチェック
+    if (capabilities.focusMode) {
+        // 一度 'single-shot' (または 'manual') モードにしてから 'continuous' に戻すことで
+        // 再フォーカスを促す、というハック的な手法。
+        // ブラウザやデバイスによって挙動が異なる場合があります。
+        track.applyConstraints({
+            advanced: [{ focusMode: 'manual' }]
+        }).then(() => {
+            return track.applyConstraints({
+                advanced: [{ focusMode: 'continuous' }]
+            });
+        }).then(() => {
+            console.log('再フォーカスを試みました。');
+        }).catch(err => {
+            console.error('フォーカスモードの適用に失敗しました:', err);
+        });
+    } else {
+        console.log('このデバイスはフォーカスモードの制御をサポートしていません。');
+    }
+});
