@@ -11,45 +11,42 @@
     <!-- カメラのプレビュー表示エリア -->
     <div id="camera-view">
         <video id="camera-preview" autoplay playsinline></video>
-         <button id="resolution-btn" class="control-btn top-left-btn">
-             <span class="material-symbols-outlined">
-                    hd
-             </span>
-         </button>
-        <!-- 画面フラッシュ用の要素 -->
-        <div id="flash-overlay"></div>
+        
+        <button id="resolution-btn" class="control-btn top-left-btn">
+             <span class="material-symbols-outlined">hd</span>
+        </button>
 
-        <!-- 左下にサムネイル表示エリアを追加 -->
+        <!-- 【新機能】ブラックアウトモード起動ボタン -->
+        <button id="blackout-btn" class="control-btn top-right-btn">
+            <span class="material-symbols-outlined">dark_mode</span>
+        </button>
+        
+        <!-- 【新機能】ブラックアウトモード用の黒い画面 -->
+        <div id="blackout-overlay" class="hidden"></div>
+
+        <div id="flash-overlay"></div>
         <div id="thumbnail-container">
             <img id="thumbnail-preview" alt="最新の写真">
         </div>
 
         <div class="controls">
-    <!-- シャッターボタンだけをコントロールバーに残す -->
-    <button id="shutter-btn" class="shutter"></button>
-</div>
-<!-- 切り替えボタンをコントロールバーの外に出す -->
-<button id="switch-camera-btn" class="control-btn">
-    <span class="material-symbols-outlined">
-        sync
-    </span>
-</button>
+            <button id="shutter-btn" class="shutter"></button>
+        </div>
+        <button id="switch-camera-btn" class="control-btn">
+            <span class="material-symbols-outlined">sync</span>
+        </button>
     </div>
 
     <!-- ギャラリー表示エリア -->
     <div id="gallery-view" class="hidden">
         <img id="gallery-image" alt="撮影した画像">
-        
-        <!-- 上部のコントロール -->
         <div class="top-controls">
             <span id="counter"></span>
             <button id="close-gallery-btn" class="gallery-btn">完了</button>
         </div>
     </div>
 
-    <!-- 描画用の非表示Canvas -->
     <canvas id="canvas" style="display: none;"></canvas>
-
     <script src="script.js"></script>
 </body>
 </html>
