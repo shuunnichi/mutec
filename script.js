@@ -6,8 +6,8 @@ const switchCameraBtn = document.getElementById('switch-camera-btn');
 const canvas = document.getElementById('canvas');
 const flashOverlay = document.getElementById('flash-overlay');
 const resolutionBtn = document.getElementById('resolution-btn');
-
-// ギャラリー関連の要素
+const blackoutBtn = document.getElementById('blackout-btn');
+const blackoutOverlay = document.getElementById('blackout-overlay');
 const galleryView = document.getElementById('gallery-view');
 const galleryImage = document.getElementById('gallery-image');
 const closeGalleryBtn = document.getElementById('close-gallery-btn');
@@ -20,75 +20,52 @@ let currentStream;
 let facingMode = 'environment';
 let photoStack = [];
 let currentGalleryIndex = 0;
-let isHighRes = false; // false = 標準画質, true = 高画質
+let isHighRes = false;
 
 // --- カメラ機能 ---
-// startCamera関数を、以下の内容で【全体を書き換え】てください
-
 async function startCamera() {
     if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
     }
-
-    // --- ここからが重要な変更点 ---
-    let constraints; // constraintsを定義
-    if (isHighRes) {
-        // 高画質モードのときの設定
-        console.log("高画質モードでカメラを起動します");
-        constraints = {
-            video: {
-                facingMode: 'environment',
-                // ideal = "この解像度が理想"という要求。デバイスが対応していなくてもエラーになりにくい。
-                width: { ideal: 4096 }, // 4K解像度を目標にする
-                height: { ideal: 2160 }
-            },
-            audio: false
-        };
-    } else {
-        // 標準画質モードのときの設定 (これまで通り)
-        console.log("標準画質モードでカメラを起動します");
-        constraints = {
-            video: { facingMode: 'environment' },
-            audio: false
-        };
-    }
-    // --- ここまでが重要な変更点 ---
+    
+    // 【バグ修正箇所】'environment'のハードコーディングをやめ、変数 facingMode を使うように修正
+    const constraints = {
+        video: {
+            facingMode: facingMode, // ここを修正！
+            width: isHighRes ? { ideal: 4096 } : undefined,
+            height: isHighRes ? { ideal: 2160 } : undefined
+        },
+        audio: false
+    };
+    
+    console.log(`${isHighRes ? '高画質' : '標準画質'}モード (${facingMode}) でカメラを起動します`);
 
     try {
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
         currentStream = stream;
     } catch (err) {
-        // ... (エラー処理は変更なし) ...
+        console.error("カメラ起動エラー:", err);
     }
 }
 
 function triggerFlash() {
     flashOverlay.classList.add('flash');
-    setTimeout(() => {
-        flashOverlay.classList.remove('flash');
-    }, 200);
+    setTimeout(() => { flashOverlay.classList.remove('flash'); }, 200);
 }
 
-// --- 撮影処理 ---
-shutterBtn.addEventListener('click', (event) => {
-    // 【修正点】イベントの伝播を停止
-    event.stopPropagation();
-    
-    if (!currentStream) {
-        alert('カメラが起動していません。');
-        return;
-    }
+// 静止画撮影の処理
+function takePicture(useFlash = true) {
+    if (!currentStream) return;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const context = canvas.getContext('2d');
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL('image/png');
-    
     photoStack.unshift(dataUrl);
     updateThumbnail();
-    triggerFlash();
-});
+    if (useFlash) triggerFlash();
+}
 
 // --- ギャラリー機能 ---
 function updateThumbnail() {
@@ -97,7 +74,6 @@ function updateThumbnail() {
         thumbnailContainer.style.display = 'block';
     }
 }
-
 function openGallery(index) {
     if (photoStack.length === 0) return;
     currentGalleryIndex = index;
@@ -105,72 +81,71 @@ function openGallery(index) {
     cameraView.classList.add('hidden');
     galleryView.classList.remove('hidden');
 }
-
 function closeGallery() {
     galleryView.classList.add('hidden');
     cameraView.classList.remove('hidden');
 }
-
 function updateGalleryView() {
     galleryImage.src = photoStack[currentGalleryIndex];
     counter.textContent = `${currentGalleryIndex + 1} / ${photoStack.length}`;
 }
 
 // --- イベントリスナー ---
-switchCameraBtn.addEventListener('click', (event) => {
-    // 【最重要修正点】イベントの伝播を停止
-    event.stopPropagation();
+shutterBtn.addEventListener('click', () => takePicture());
 
+switchCameraBtn.addEventListener('click', () => {
     facingMode = (facingMode === 'user') ? 'environment' : 'user';
     startCamera();
 });
 
 resolutionBtn.addEventListener('click', () => {
     isHighRes = !isHighRes;
-
-    // ボタンにクラスを付けたり外したりして、色を制御する
-    if (isHighRes) {
-        // 高画質モードになったら is-high-res クラスを追加
-        resolutionBtn.classList.add('is-high-res');
-    } else {
-        // 標準画質モードになったら is-high-res クラスを削除
-        resolutionBtn.classList.remove('is-high-res');
-    }
-
+    resolutionBtn.classList.toggle('is-high-res', isHighRes);
     startCamera();
 });
 
-thumbnailContainer.addEventListener('click', (event) => {
-    // 【修正点】イベントの伝播を停止
-    event.stopPropagation();
-
-    openGallery(0);
-});
-
+thumbnailContainer.addEventListener('click', () => openGallery(0));
 closeGalleryBtn.addEventListener('click', closeGallery);
 
-video.addEventListener('click', () => {
-    if (!currentStream) return;
-    const track = currentStream.getVideoTracks()[0];
-    const capabilities = track.getCapabilities();
-    if (capabilities.focusMode) {
-        track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] })
-        .catch(e => console.error('フォーカスの適用に失敗', e));
+// 【新機能】ブラックアウトモードのロジック
+blackoutBtn.addEventListener('click', () => blackoutOverlay.classList.remove('hidden'));
+
+let swipeState = { stage: 0, startY: 0, startTime: 0, timeout: null };
+blackoutOverlay.addEventListener('touchstart', (e) => {
+    swipeState.startY = e.changedTouches[0].clientY;
+});
+blackoutOverlay.addEventListener('touchend', (e) => {
+    const deltaY = e.changedTouches[0].clientY - swipeState.startY;
+
+    if (Math.abs(deltaY) < 10) { // 短いタップと判定
+        takePicture(false); // フラッシュなしで撮影
+        return;
+    }
+    
+    // スワイプ方向を判定
+    if (deltaY < -50) { // 上スワイプ
+        if (swipeState.stage === 0) {
+            swipeState.stage = 1; // ステージ1へ
+            swipeState.timeout = setTimeout(() => { swipeState.stage = 0; }, 1000); // 1秒以内に次の操作がなければリセット
+        }
+    } else if (deltaY > 50) { // 下スワイプ
+        if (swipeState.stage === 1) {
+            clearTimeout(swipeState.timeout);
+            swipeState.stage = 0;
+            blackoutOverlay.classList.add('hidden'); // コマンド成功！モード解除
+        }
     }
 });
 
+// ギャラリーでのスワイプ
 let touchStartX = 0;
-galleryView.addEventListener('touchstart', (e) => {
-    touchStartX = e.changedTouches[0].screenX;
-});
-
+galleryView.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; });
 galleryView.addEventListener('touchend', (e) => {
-    const touchEndX = e.changedTouches[0].screenX;
-    const swipeDistance = touchEndX - touchStartX;
-    if (swipeDistance > 50 && currentGalleryIndex > 0) {
+    const deltaX = e.changedTouches[0].screenX - touchStartX;
+    if (deltaX > 50 && currentGalleryIndex > 0) {
         currentGalleryIndex--;
         updateGalleryView();
-    } else if (swipeDistance < -50 && currentGalleryIndex < photoStack.length - 1) {
+    } else if (deltaX < -50 && currentGalleryIndex < photoStack.length - 1) {
         currentGalleryIndex++;
         updateGalleryView();
     }
