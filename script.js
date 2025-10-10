@@ -126,17 +126,17 @@ switchCameraBtn.addEventListener('click', (event) => {
 });
 
 resolutionBtn.addEventListener('click', () => {
-    // 現在の状態を反転させる (true -> false, false -> true)
     isHighRes = !isHighRes;
 
-    // ボタンのテキストを更新して、ユーザーに状態を知らせる
+    // ボタンにクラスを付けたり外したりして、色を制御する
     if (isHighRes) {
-        resolutionBtn.textContent = '高画質';
+        // 高画質モードになったら is-high-res クラスを追加
+        resolutionBtn.classList.add('is-high-res');
     } else {
-        resolutionBtn.textContent = '標準画質';
+        // 標準画質モードになったら is-high-res クラスを削除
+        resolutionBtn.classList.remove('is-high-res');
     }
 
-    // 新しい設定でカメラを再起動する
     startCamera();
 });
 
