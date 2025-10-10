@@ -5,6 +5,7 @@ const shutterBtn = document.getElementById('shutter-btn');
 const switchCameraBtn = document.getElementById('switch-camera-btn');
 const canvas = document.getElementById('canvas');
 const flashOverlay = document.getElementById('flash-overlay');
+const resolutionBtn = document.getElementById('resolution-btn');
 
 // ギャラリー関連の要素
 const galleryView = document.getElementById('gallery-view');
@@ -19,28 +20,46 @@ let currentStream;
 let facingMode = 'environment';
 let photoStack = [];
 let currentGalleryIndex = 0;
+let isHighRes = false; // false = 標準画質, true = 高画質
 
 // --- カメラ機能 ---
+// startCamera関数を、以下の内容で【全体を書き換え】てください
+
 async function startCamera() {
     if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
     }
+
+    // --- ここからが重要な変更点 ---
+    let constraints; // constraintsを定義
+    if (isHighRes) {
+        // 高画質モードのときの設定
+        console.log("高画質モードでカメラを起動します");
+        constraints = {
+            video: {
+                facingMode: 'environment',
+                // ideal = "この解像度が理想"という要求。デバイスが対応していなくてもエラーになりにくい。
+                width: { ideal: 4096 }, // 4K解像度を目標にする
+                height: { ideal: 2160 }
+            },
+            audio: false
+        };
+    } else {
+        // 標準画質モードのときの設定 (これまで通り)
+        console.log("標準画質モードでカメラを起動します");
+        constraints = {
+            video: { facingMode: 'environment' },
+            audio: false
+        };
+    }
+    // --- ここまでが重要な変更点 ---
+
     try {
-        const constraints = { video: { facingMode: facingMode }, audio: false };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
         currentStream = stream;
     } catch (err) {
-        console.error('カメラの起動に失敗:', err);
-        let message = 'カメラを利用できませんでした。\n';
-        if (err.name === 'NotAllowedError') {
-            message += 'カメラの使用が許可されていません。ブラウザまたはスマートフォンの設定で、このサイトへのカメラアクセスを許可してください。';
-        } else if (err.name === 'NotFoundError') {
-            message += '利用可能なカメラが見つかりませんでした。';
-        } else {
-            message += 'エラーが発生しました: ' + err.name;
-        }
-        alert(message);
+        // ... (エラー処理は変更なし) ...
     }
 }
 
@@ -103,6 +122,21 @@ switchCameraBtn.addEventListener('click', (event) => {
     event.stopPropagation();
 
     facingMode = (facingMode === 'user') ? 'environment' : 'user';
+    startCamera();
+});
+
+resolutionBtn.addEventListener('click', () => {
+    // 現在の状態を反転させる (true -> false, false -> true)
+    isHighRes = !isHighRes;
+
+    // ボタンのテキストを更新して、ユーザーに状態を知らせる
+    if (isHighRes) {
+        resolutionBtn.textContent = '高画質';
+    } else {
+        resolutionBtn.textContent = '標準画質';
+    }
+
+    // 新しい設定でカメラを再起動する
     startCamera();
 });
 
