@@ -219,3 +219,22 @@ body, html {
     z-index: 10; /* 他の要素より手前に表示 */
     box-shadow: 0 2px 5px rgba(0,0,0,0.5);
 }
+.top-left-btn {
+    width: 44px; /* 右下のボタンとサイズを合わせる */
+    height: 44px;
+    padding: 0;
+    border-radius: 50%; /* 円にする */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+/* アイコンの色や状態を示すためのスタイル */
+.top-left-btn .material-symbols-outlined {
+    font-size: 28px; /* アイコンのサイズ */
+    color: #fff; /* 通常の色 (白) */
+}
+
+/* is-high-res クラスがついた時のアイコンの色 (高画質モードの時) */
+.top-left-btn.is-high-res .material-symbols-outlined {
+    color: #4CAF50; /* 例：緑色にしてアクティブ状態を示す */
+}
