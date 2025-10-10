@@ -5,12 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>無音カメラ</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 </head>
 <body>
     <!-- カメラのプレビュー表示エリア -->
     <div id="camera-view">
         <video id="camera-preview" autoplay playsinline></video>
-         <button id="resolution-btn" class="control-btn top-left-btn">標準画質</button>
+         <button id="resolution-btn" class="control-btn top-left-btn">
+             <span class="material-symbols-outlined">
+                    hd
+             </span>
+         </button>
         <!-- 画面フラッシュ用の要素 -->
         <div id="flash-overlay"></div>
 
