@@ -212,3 +212,10 @@ body, html {
     cursor: pointer;
     padding: 5px;
 }
+.top-left-btn {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    z-index: 10; /* 他の要素より手前に表示 */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
