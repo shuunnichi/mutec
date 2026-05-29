@@ -50,15 +50,67 @@ function triggerFlash() {
     setTimeout(() => { flashOverlay.classList.remove('flash'); }, 200);
 }
 
-// 静止画撮影の処理
-function takePicture(useFlash = true) {
-    if (!currentStream) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+// 画像のシャープネスを簡易計算する（Laplacian-ish なフィルタ）
+function computeSharpness(imageData) {
+    const { data, width, height } = imageData;
+    // グレースケールの単純化配列を作る
+    const gray = new Uint8ClampedArray(width * height);
+    for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+        // NTSC近似の重み
+        gray[j] = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) | 0;
+    }
+
+    // Laplacian-ish の合計絶対値をシャープネス指標にする
+    let sum = 0;
+    for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+            const idx = y * width + x;
+            const center = gray[idx];
+            const top = gray[idx - width];
+            const bottom = gray[idx + width];
+            const left = gray[idx - 1];
+            const right = gray[idx + 1];
+            const lap = Math.abs(4 * center - top - bottom - left - right);
+            sum += lap;
+        }
+    }
+    return sum;
+}
+
+// 1フレームをキャプチャして imageData と dataURL を返す
+function captureFrame() {
+    if (!currentStream) return null;
+    canvas.width = video.videoWidth || video.clientWidth;
+    canvas.height = video.videoHeight || video.clientHeight;
     const context = canvas.getContext('2d');
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL('image/png');
-    photoStack.unshift(dataUrl);
+    const sharpness = computeSharpness(imageData);
+    return { dataUrl, sharpness };
+}
+
+// 静止画撮影（複数フレーム取得して最もシャープな1枚を選択）
+async function takePicture(useFlash = true) {
+    if (!currentStream) return;
+    const samples = 5; // 取得フレーム数
+    const delayMs = 80; // フレーム間隔
+    const results = [];
+
+    for (let i = 0; i < samples; i++) {
+        // 次フレームに揃えるため requestAnimationFrame を待つ
+        await new Promise(r => requestAnimationFrame(r));
+        const frame = captureFrame();
+        if (frame) results.push(frame);
+        // 少し待って次フレームを取得
+        if (i < samples - 1) await new Promise(r => setTimeout(r, delayMs));
+    }
+
+    if (results.length === 0) return;
+    // 最大の sharpness を持つフレームを選択
+    results.sort((a, b) => b.sharpness - a.sharpness);
+    const best = results[0].dataUrl;
+    photoStack.unshift(best);
     updateThumbnail();
     if (useFlash) triggerFlash();
 }
