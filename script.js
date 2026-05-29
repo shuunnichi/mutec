@@ -22,6 +22,10 @@ let currentGalleryIndex = 0;
 // iPhone系ならSE3向け最適化を有効にする（簡易検出）
 const isiPhone = /iPhone/.test(navigator.userAgent || '');
 const seOptimized = isiPhone; // 必要なら false にして無効化できます
+// 分析用の小さなキャンバス（ダウンサンプリングして高速にシャープネスを計算）
+const ANALYZE_WIDTH = 320;
+const analyzeCanvas = document.createElement('canvas');
+const analyzeCtx = analyzeCanvas.getContext('2d');
 
 // --- カメラ機能 ---
 async function startCamera() {
@@ -81,27 +85,43 @@ function computeSharpness(imageData) {
 }
 
 // 1フレームをキャプチャして imageData と dataURL を返す
-async function captureFrame() {
+// 解析用フレーム（小さなキャンバスでダウンサンプリングしてシャープネスを返す）
+function analyzeFrame() {
     if (!currentStream) return null;
-    canvas.width = video.videoWidth || video.clientWidth;
-    canvas.height = video.videoHeight || video.clientHeight;
-    const context = canvas.getContext('2d');
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const videoW = video.videoWidth || video.clientWidth || 640;
+    const videoH = video.videoHeight || video.clientHeight || 480;
+    const ratio = videoH / videoW;
+    const w = ANALYZE_WIDTH;
+    const h = Math.max(1, Math.round(w * ratio));
+    analyzeCanvas.width = w;
+    analyzeCanvas.height = h;
+    analyzeCtx.drawImage(video, 0, 0, w, h);
+    const imageData = analyzeCtx.getImageData(0, 0, w, h);
     const sharpness = computeSharpness(imageData);
-    // JPEG に変換（品質を指定）
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
-    const url = URL.createObjectURL(blob);
-    return { url, blob, sharpness };
+    return { sharpness };
+}
+
+// フル解像度で最終的にJPEGを生成する（1回だけ呼ぶ）
+function captureFullResBlob() {
+    return new Promise(resolve => {
+        canvas.width = video.videoWidth || video.clientWidth;
+        canvas.height = video.videoHeight || video.clientHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => {
+            const url = URL.createObjectURL(blob);
+            resolve({ url, blob });
+        }, 'image/jpeg', 0.85);
+    });
 }
 
 // 静止画撮影（複数フレーム取得して最もシャープな1枚を選択）
 async function takePicture(useFlash = true, options = {}) {
     const { bypassPreWait = false } = options;
     if (!currentStream) return;
-    const samples = seOptimized ? 5 : 5; // 将来差分があれば分けられる
-    const delayMs = seOptimized ? 80 : 80;
-    const preWait = (seOptimized && !bypassPreWait) ? 400 : 0; // SE向けにAFが落ち着くまで待つ
+    const samples = seOptimized ? 3 : 3; // サンプル数を減らして高速化
+    const delayMs = seOptimized ? 40 : 50; // フレーム間隔を短縮
+    const preWait = (seOptimized && !bypassPreWait) ? 200 : 0; // 待機時間を短縮
     const results = [];
 
     if (preWait > 0) {
@@ -110,16 +130,17 @@ async function takePicture(useFlash = true, options = {}) {
 
     for (let i = 0; i < samples; i++) {
         await new Promise(r => requestAnimationFrame(r));
-        const frame = await captureFrame();
+        const frame = analyzeFrame();
         if (frame) results.push(frame);
         if (i < samples - 1) await new Promise(r => setTimeout(r, delayMs));
     }
 
     if (results.length === 0) return;
+    // 最良インデックスを選ぶ（ただしここではインデックスは不要、最後にフル解像度取得）
     results.sort((a, b) => b.sharpness - a.sharpness);
-    const best = results[0];
-    // オブジェクトで保存しておく（あとでダウンロード等しやすい）
-    photoStack.unshift({ url: best.url, blob: best.blob });
+    // 最終的にフル解像度を1回だけ生成
+    const full = await captureFullResBlob();
+    photoStack.unshift({ url: full.url, blob: full.blob });
     updateThumbnail();
     if (useFlash) triggerFlash();
 }
