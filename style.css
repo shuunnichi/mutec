@@ -135,7 +135,7 @@ body, html {
     top: 15px; left: 15px;
     z-index: 10;
 }
-.top-left-btn.is-high-res .material-symbols-outlined { color: #4CAF50; }
+.top-left-btn .material-symbols-outlined { color: inherit; }
 .top-right-btn {
     position: absolute;
     top: 15px; right: 15px;

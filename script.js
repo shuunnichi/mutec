@@ -5,7 +5,6 @@ const shutterBtn = document.getElementById('shutter-btn');
 const switchCameraBtn = document.getElementById('switch-camera-btn');
 const canvas = document.getElementById('canvas');
 const flashOverlay = document.getElementById('flash-overlay');
-const resolutionBtn = document.getElementById('resolution-btn');
 const blackoutBtn = document.getElementById('blackout-btn');
 const blackoutOverlay = document.getElementById('blackout-overlay');
 const galleryView = document.getElementById('gallery-view');
@@ -20,7 +19,6 @@ let currentStream;
 let facingMode = 'environment';
 let photoStack = [];
 let currentGalleryIndex = 0;
-let isHighRes = false;
 
 // --- カメラ機能 ---
 async function startCamera() {
@@ -31,14 +29,12 @@ async function startCamera() {
     // 【バグ修正箇所】'environment'のハードコーディングをやめ、変数 facingMode を使うように修正
     const constraints = {
         video: {
-            facingMode: facingMode, // ここを修正！
-            width: isHighRes ? { ideal: 4096 } : undefined,
-            height: isHighRes ? { ideal: 2160 } : undefined
+            facingMode: facingMode
         },
         audio: false
     };
-    
-    console.log(`${isHighRes ? '高画質' : '標準画質'}モード (${facingMode}) でカメラを起動します`);
+
+    console.log(`カメラを起動します (${facingMode})`);
 
     try {
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -98,11 +94,7 @@ switchCameraBtn.addEventListener('click', () => {
     startCamera();
 });
 
-resolutionBtn.addEventListener('click', () => {
-    isHighRes = !isHighRes;
-    resolutionBtn.classList.toggle('is-high-res', isHighRes);
-    startCamera();
-});
+// 解像度切替は削除されました
 
 thumbnailContainer.addEventListener('click', () => openGallery(0));
 closeGalleryBtn.addEventListener('click', closeGallery);
