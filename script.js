@@ -17,8 +17,11 @@ const counter = document.getElementById('counter');
 // --- グローバル変数 ---
 let currentStream;
 let facingMode = 'environment';
-let photoStack = [];
+let photoStack = []; // 各要素: { url: string, blob?: Blob }
 let currentGalleryIndex = 0;
+// iPhone系ならSE3向け最適化を有効にする（簡易検出）
+const isiPhone = /iPhone/.test(navigator.userAgent || '');
+const seOptimized = isiPhone; // 必要なら false にして無効化できます
 
 // --- カメラ機能 ---
 async function startCamera() {
@@ -78,39 +81,45 @@ function computeSharpness(imageData) {
 }
 
 // 1フレームをキャプチャして imageData と dataURL を返す
-function captureFrame() {
+async function captureFrame() {
     if (!currentStream) return null;
     canvas.width = video.videoWidth || video.clientWidth;
     canvas.height = video.videoHeight || video.clientHeight;
     const context = canvas.getContext('2d');
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/png');
     const sharpness = computeSharpness(imageData);
-    return { dataUrl, sharpness };
+    // JPEG に変換（品質を指定）
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+    const url = URL.createObjectURL(blob);
+    return { url, blob, sharpness };
 }
 
 // 静止画撮影（複数フレーム取得して最もシャープな1枚を選択）
-async function takePicture(useFlash = true) {
+async function takePicture(useFlash = true, options = {}) {
+    const { bypassPreWait = false } = options;
     if (!currentStream) return;
-    const samples = 5; // 取得フレーム数
-    const delayMs = 80; // フレーム間隔
+    const samples = seOptimized ? 5 : 5; // 将来差分があれば分けられる
+    const delayMs = seOptimized ? 80 : 80;
+    const preWait = (seOptimized && !bypassPreWait) ? 400 : 0; // SE向けにAFが落ち着くまで待つ
     const results = [];
 
+    if (preWait > 0) {
+        await new Promise(r => setTimeout(r, preWait));
+    }
+
     for (let i = 0; i < samples; i++) {
-        // 次フレームに揃えるため requestAnimationFrame を待つ
         await new Promise(r => requestAnimationFrame(r));
-        const frame = captureFrame();
+        const frame = await captureFrame();
         if (frame) results.push(frame);
-        // 少し待って次フレームを取得
         if (i < samples - 1) await new Promise(r => setTimeout(r, delayMs));
     }
 
     if (results.length === 0) return;
-    // 最大の sharpness を持つフレームを選択
     results.sort((a, b) => b.sharpness - a.sharpness);
-    const best = results[0].dataUrl;
-    photoStack.unshift(best);
+    const best = results[0];
+    // オブジェクトで保存しておく（あとでダウンロード等しやすい）
+    photoStack.unshift({ url: best.url, blob: best.blob });
     updateThumbnail();
     if (useFlash) triggerFlash();
 }
@@ -118,7 +127,7 @@ async function takePicture(useFlash = true) {
 // --- ギャラリー機能 ---
 function updateThumbnail() {
     if (photoStack.length > 0) {
-        thumbnailPreview.src = photoStack[0];
+        thumbnailPreview.src = photoStack[0].url;
         thumbnailContainer.style.display = 'block';
     }
 }
@@ -134,7 +143,7 @@ function closeGallery() {
     cameraView.classList.remove('hidden');
 }
 function updateGalleryView() {
-    galleryImage.src = photoStack[currentGalleryIndex];
+    galleryImage.src = photoStack[currentGalleryIndex].url;
     counter.textContent = `${currentGalleryIndex + 1} / ${photoStack.length}`;
 }
 
@@ -162,7 +171,7 @@ blackoutOverlay.addEventListener('touchend', (e) => {
     const deltaY = e.changedTouches[0].clientY - swipeState.startY;
 
     if (Math.abs(deltaY) < 10) { // 短いタップと判定
-        takePicture(false); // フラッシュなしで撮影
+        takePicture(false, { bypassPreWait: true }); // フラッシュなしで即撮影
         return;
     }
     
