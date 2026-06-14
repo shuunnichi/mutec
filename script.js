@@ -14,29 +14,35 @@ const thumbnailContainer = document.getElementById('thumbnail-container');
 const thumbnailPreview = document.getElementById('thumbnail-preview');
 const counter = document.getElementById('counter');
 
-// 新機能用要素
-const photoCountBadge = document.getElementById('photo-count-badge');
-const savePdfBtn = document.getElementById('save-pdf-btn');
-const deleteLastBtn = document.getElementById('delete-last-btn');
-const clearAllBtn = document.getElementById('clear-all-btn');
-
 // --- グローバル変数 ---
 let currentStream;
 let facingMode = 'environment';
-let photoStack = []; // 各要素: { url: string, blob: Blob, dataUrl: string }
+let photoStack = []; // 各要素: { url: string, blob?: Blob }
 let currentGalleryIndex = 0;
-let galleryViewer = null; // Viewer.js用
-
+// iPhone系ならSE3向け最適化を有効にする（簡易検出）
 const isiPhone = /iPhone/.test(navigator.userAgent || '');
-const seOptimized = isiPhone;
+const seOptimized = isiPhone; // 必要なら false にして無効化できます
+// 分析用の小さなキャンバス（ダウンサンプリングして高速にシャープネスを計算）
 const ANALYZE_WIDTH = 320;
 const analyzeCanvas = document.createElement('canvas');
 const analyzeCtx = analyzeCanvas.getContext('2d');
 
 // --- カメラ機能 ---
 async function startCamera() {
-    if (currentStream) currentStream.getTracks().forEach(track => track.stop());
-    const constraints = { video: { facingMode: facingMode }, audio: false };
+    if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+    }
+    
+    // 【バグ修正箇所】'environment'のハードコーディングをやめ、変数 facingMode を使うように修正
+    const constraints = {
+        video: {
+            facingMode: facingMode
+        },
+        audio: false
+    };
+
+    console.log(`カメラを起動します (${facingMode})`);
+
     try {
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
@@ -47,16 +53,21 @@ async function startCamera() {
 }
 
 function triggerFlash() {
-    flashOverlay.style.opacity = '1';
-    setTimeout(() => { flashOverlay.style.opacity = '0'; }, 200);
+    flashOverlay.classList.add('flash');
+    setTimeout(() => { flashOverlay.classList.remove('flash'); }, 200);
 }
 
+// 画像のシャープネスを簡易計算する（Laplacian-ish なフィルタ）
 function computeSharpness(imageData) {
     const { data, width, height } = imageData;
+    // グレースケールの単純化配列を作る
     const gray = new Uint8ClampedArray(width * height);
     for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+        // NTSC近似の重み
         gray[j] = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) | 0;
     }
+
+    // Laplacian-ish の合計絶対値をシャープネス指標にする
     let sum = 0;
     for (let y = 1; y < height - 1; y++) {
         for (let x = 1; x < width - 1; x++) {
@@ -66,12 +77,15 @@ function computeSharpness(imageData) {
             const bottom = gray[idx + width];
             const left = gray[idx - 1];
             const right = gray[idx + 1];
-            sum += Math.abs(4 * center - top - bottom - left - right);
+            const lap = Math.abs(4 * center - top - bottom - left - right);
+            sum += lap;
         }
     }
     return sum;
 }
 
+// 1フレームをキャプチャして imageData と dataURL を返す
+// 解析用フレーム（小さなキャンバスでダウンサンプリングしてシャープネスを返す）
 function analyzeFrame() {
     if (!currentStream) return null;
     const videoW = video.videoWidth || video.clientWidth || 640;
@@ -82,34 +96,37 @@ function analyzeFrame() {
     analyzeCanvas.width = w;
     analyzeCanvas.height = h;
     analyzeCtx.drawImage(video, 0, 0, w, h);
-    return { sharpness: computeSharpness(analyzeCtx.getImageData(0, 0, w, h)) };
+    const imageData = analyzeCtx.getImageData(0, 0, w, h);
+    const sharpness = computeSharpness(imageData);
+    return { sharpness };
 }
 
+// フル解像度で最終的にJPEGを生成する（1回だけ呼ぶ）
 function captureFullResBlob() {
     return new Promise(resolve => {
         canvas.width = video.videoWidth || video.clientWidth;
         canvas.height = video.videoHeight || video.clientHeight;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // PDF用にDataURL(Base64)も一緒に生成する
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
         canvas.toBlob(blob => {
             const url = URL.createObjectURL(blob);
-            resolve({ url, blob, dataUrl });
+            resolve({ url, blob });
         }, 'image/jpeg', 0.85);
     });
 }
 
+// 静止画撮影（複数フレーム取得して最もシャープな1枚を選択）
 async function takePicture(useFlash = true, options = {}) {
     const { bypassPreWait = false } = options;
     if (!currentStream) return;
-    const samples = seOptimized ? 3 : 3;
-    const delayMs = seOptimized ? 40 : 50;
-    const preWait = (seOptimized && !bypassPreWait) ? 200 : 0;
+    const samples = seOptimized ? 3 : 3; // サンプル数を減らして高速化
+    const delayMs = seOptimized ? 40 : 50; // フレーム間隔を短縮
+    const preWait = (seOptimized && !bypassPreWait) ? 200 : 0; // 待機時間を短縮
     const results = [];
 
-    if (preWait > 0) await new Promise(r => setTimeout(r, preWait));
+    if (preWait > 0) {
+        await new Promise(r => setTimeout(r, preWait));
+    }
 
     for (let i = 0; i < samples; i++) {
         await new Promise(r => requestAnimationFrame(r));
@@ -119,62 +136,13 @@ async function takePicture(useFlash = true, options = {}) {
     }
 
     if (results.length === 0) return;
+    // 最良インデックスを選ぶ（ただしここではインデックスは不要、最後にフル解像度取得）
     results.sort((a, b) => b.sharpness - a.sharpness);
-    
+    // 最終的にフル解像度を1回だけ生成
     const full = await captureFullResBlob();
-    photoStack.unshift({ url: full.url, blob: full.blob, dataUrl: full.dataUrl });
-    
+    photoStack.unshift({ url: full.url, blob: full.blob });
     updateThumbnail();
     if (useFlash) triggerFlash();
-}
-
-// --- ボタン機能（削除・PDF） ---
-if (deleteLastBtn) {
-    deleteLastBtn.addEventListener('click', () => {
-        if (photoStack.length === 0) return;
-        if (confirm("直前に撮った写真を1枚削除しますか？")) {
-            photoStack.shift();
-            updateThumbnail();
-        }
-    });
-}
-
-if (clearAllBtn) {
-    clearAllBtn.addEventListener('click', () => {
-        if (photoStack.length === 0) return;
-        if (confirm(`すべての写真 (${photoStack.length}枚) を削除しますか？`)) {
-            photoStack = [];
-            updateThumbnail();
-        }
-    });
-}
-
-if (savePdfBtn) {
-    savePdfBtn.addEventListener('click', () => {
-        if (photoStack.length === 0) {
-            alert("PDFにする写真がありません。");
-            return;
-        }
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = doc.internal.pageSize.getWidth();
-        const pdfHeight = doc.internal.pageSize.getHeight();
-
-        // 撮影順（古い順）にPDF化するため配列を反転させる
-        const chronologicalStack = [...photoStack].reverse();
-
-        chronologicalStack.forEach((photo, index) => {
-            if (index > 0) doc.addPage();
-            doc.addImage(photo.dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-        });
-
-        const now = new Date();
-        const timestamp = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') +
-            String(now.getDate()).padStart(2, '0') + '_' + String(now.getHours()).padStart(2, '0') +
-            String(now.getMinutes()).padStart(2, '0');
-            
-        doc.save(`photos_${timestamp}.pdf`);
-    });
 }
 
 // --- ギャラリー機能 ---
@@ -182,47 +150,22 @@ function updateThumbnail() {
     if (photoStack.length > 0) {
         thumbnailPreview.src = photoStack[0].url;
         thumbnailContainer.style.display = 'block';
-        if (photoCountBadge) {
-            photoCountBadge.innerText = photoStack.length;
-            photoCountBadge.classList.remove('hidden');
-        }
-    } else {
-        thumbnailPreview.src = "";
-        thumbnailContainer.style.display = 'none';
-        if (photoCountBadge) photoCountBadge.classList.add('hidden');
     }
 }
-
 function openGallery(index) {
     if (photoStack.length === 0) return;
     currentGalleryIndex = index;
+    updateGalleryView();
     cameraView.classList.add('hidden');
     galleryView.classList.remove('hidden');
-    updateGalleryView();
 }
-
 function closeGallery() {
     galleryView.classList.add('hidden');
     cameraView.classList.remove('hidden');
-    if (galleryViewer) {
-        galleryViewer.destroy();
-        galleryViewer = null;
-    }
 }
-
 function updateGalleryView() {
     galleryImage.src = photoStack[currentGalleryIndex].url;
     counter.textContent = `${currentGalleryIndex + 1} / ${photoStack.length}`;
-
-    // Viewer.jsが読み込めているか確認して初期化
-    if (typeof Viewer !== 'undefined') {
-        if (galleryViewer) galleryViewer.destroy();
-        galleryViewer = new Viewer(galleryImage, {
-            inline: true, button: false, navbar: false, title: false,
-            toolbar: false, tooltip: false, movable: true, zoomable: true,
-            rotatable: false, scalable: false, transition: false
-        });
-    }
 }
 
 // --- イベントリスナー ---
@@ -233,10 +176,12 @@ switchCameraBtn.addEventListener('click', () => {
     startCamera();
 });
 
+// 解像度切替は削除されました
+
 thumbnailContainer.addEventListener('click', () => openGallery(0));
 closeGalleryBtn.addEventListener('click', closeGallery);
 
-// ブラックアウトモード
+// 【新機能】ブラックアウトモードのロジック
 blackoutBtn.addEventListener('click', () => blackoutOverlay.classList.remove('hidden'));
 
 let swipeState = { stage: 0, startY: 0, startTime: 0, timeout: null };
@@ -245,36 +190,31 @@ blackoutOverlay.addEventListener('touchstart', (e) => {
 });
 blackoutOverlay.addEventListener('touchend', (e) => {
     const deltaY = e.changedTouches[0].clientY - swipeState.startY;
-    if (Math.abs(deltaY) < 10) { 
-        takePicture(false, { bypassPreWait: true });
+
+    if (Math.abs(deltaY) < 10) { // 短いタップと判定
+        takePicture(false, { bypassPreWait: true }); // フラッシュなしで即撮影
         return;
     }
-    if (deltaY < -50) { 
+    
+    // スワイプ方向を判定
+    if (deltaY < -50) { // 上スワイプ
         if (swipeState.stage === 0) {
-            swipeState.stage = 1; 
-            swipeState.timeout = setTimeout(() => { swipeState.stage = 0; }, 1000); 
+            swipeState.stage = 1; // ステージ1へ
+            swipeState.timeout = setTimeout(() => { swipeState.stage = 0; }, 1000); // 1秒以内に次の操作がなければリセット
         }
-    } else if (deltaY > 50) { 
+    } else if (deltaY > 50) { // 下スワイプ
         if (swipeState.stage === 1) {
             clearTimeout(swipeState.timeout);
             swipeState.stage = 0;
-            blackoutOverlay.classList.add('hidden'); 
+            blackoutOverlay.classList.add('hidden'); // コマンド成功！モード解除
         }
     }
 });
 
-// ギャラリーでのスワイプ (Viewer.jsと競合しないよう調整)
+// ギャラリーでのスワイプ
 let touchStartX = 0;
-galleryView.addEventListener('touchstart', (e) => { 
-    if(e.touches.length > 1) return; // ピンチ操作中は無視
-    touchStartX = e.changedTouches[0].screenX; 
-});
+galleryView.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; });
 galleryView.addEventListener('touchend', (e) => {
-    if(e.changedTouches.length > 1) return;
-    
-    // 拡大中はスワイプを無効化（画像移動を優先）
-    if (galleryViewer && galleryViewer.imageData && galleryViewer.imageData.ratio > 1.05) return;
-
     const deltaX = e.changedTouches[0].screenX - touchStartX;
     if (deltaX > 50 && currentGalleryIndex > 0) {
         currentGalleryIndex--;
