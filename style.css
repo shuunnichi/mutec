@@ -1,150 +1,43 @@
-/* アプリ全体の操作性を向上させるためのスタイル */
-* {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-}
-body {
-    touch-action: manipulation;
-}
-body, html {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background-color: #000;
-    font-family: sans-serif;
-}
-#camera-view, #gallery-view {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-}
-#camera-preview, #gallery-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-.controls {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    padding: 20px 0;
-    box-sizing: border-box;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0));
-    pointer-events: none;
-}
-.shutter {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background-color: transparent;
-    border: 6px solid #fff;
-    cursor: pointer;
-    transition: transform 0.1s ease;
-    pointer-events: auto; 
-}
-.shutter:active {
-    transform: scale(0.95);
-    border-width: 8px;
-}
-.control-btn {
-    border: none;
-    background-color: rgba(100, 100, 100, 0.6);
-    color: #fff;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-}
-.control-btn .material-symbols-outlined {
-    font-size: 28px;
-}
-.control-btn:hover {
-    background-color: rgba(120, 120, 120, 0.8);
-}
-.hidden { display: none; }
+/* 必須: これがないとサムネイルやボタンが押せなくなります */
 #flash-overlay {
     position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background-color: white;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: #fff;
     opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease-out;
+    z-index: 5;
+    pointer-events: none; /* ←超重要！ */
+    transition: opacity 0.15s ease-out;
 }
-#flash-overlay.flash { opacity: 0.7; }
+
+/* サムネイルとバッジ */
 #thumbnail-container {
     position: absolute;
-    bottom: 25px; left: 30px;
-    width: 55px; height: 55px;
-    border-radius: 8px;
-    overflow: hidden;
+    bottom: 40px;
+    left: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
     border: 2px solid #fff;
+    background: #222;
     cursor: pointer;
-    display: none;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
     z-index: 10;
 }
-#thumbnail-preview {
-    width: 100%; height: 100%;
-    object-fit: cover;
+#thumbnail-preview { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+#photo-count-badge {
+    position: absolute; top: -8px; right: -8px;
+    background: #ff3b30; color: white; font-size: 12px; font-weight: bold;
+    border-radius: 10px; padding: 2px 7px; z-index: 11;
 }
-#gallery-view { background-color: #000; }
-#gallery-image { object-fit: contain; }
-#switch-camera-btn {
-    position: absolute;
-    bottom: 25px; right: 30px;
-    z-index: 10;
+
+/* サブボタン（PDF・削除用） */
+.sub-controls {
+    position: absolute; top: 20px; left: 20px;
+    display: flex; flex-direction: column; gap: 10px; z-index: 10;
 }
-.top-controls {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%;
-    padding: 15px 20px;
-    box-sizing: border-box;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(0,0,0,0));
-    color: #fff;
-    font-size: 18px;
+.sub-btn {
+    color: #fff; border: none; padding: 8px 14px; border-radius: 20px;
+    font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px; cursor: pointer;
 }
-.gallery-btn {
-    background: none; border: none;
-    color: #fff; font-size: 18px;
-    cursor: pointer; padding: 5px;
-}
-.top-left-btn {
-    position: absolute;
-    top: 15px; left: 15px;
-    z-index: 10;
-}
-.top-left-btn .material-symbols-outlined { color: inherit; }
-.top-right-btn {
-    position: absolute;
-    top: 15px; right: 15px;
-    z-index: 10;
-}
-#blackout-overlay {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background-color: #000;
-    z-index: 20;
-}
+.pdf-color { background: rgba(33, 150, 243, 0.8); }
+.delete-color { background: rgba(233, 30, 99, 0.8); }
+.hidden { display: none !important; }
